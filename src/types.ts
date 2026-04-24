@@ -11,6 +11,7 @@ export interface TagReading {
 
 export interface TagSnapshot {
   agent_id: string;
+  agent_zone: string;
   timestamp: string;
   tags: TagReading[];
 }
@@ -18,6 +19,7 @@ export interface TagSnapshot {
 export interface StoredTagReading {
   id: number;
   agent_id: string;
+  agent_zone: string;
   epc: string;
   rssi: number;
   avg_rssi: number;
@@ -32,6 +34,7 @@ export interface StoredTagReading {
 export interface CurrentTagState {
   epc: string;
   agent_id: string;
+  agent_zone: string;
   rssi: number;
   avg_rssi: number;
   pc: number;

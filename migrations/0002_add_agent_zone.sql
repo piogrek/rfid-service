@@ -1,0 +1,2 @@
+ALTER TABLE tag_readings ADD COLUMN agent_zone TEXT NOT NULL DEFAULT '';
+ALTER TABLE tag_snapshots ADD COLUMN agent_zone TEXT NOT NULL DEFAULT '';

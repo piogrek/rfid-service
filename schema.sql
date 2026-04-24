@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS tag_readings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   agent_id TEXT NOT NULL,
+  agent_zone TEXT NOT NULL DEFAULT '',
   epc TEXT NOT NULL,
   rssi INTEGER NOT NULL,
   avg_rssi REAL NOT NULL,
@@ -19,6 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_tag_readings_agent_time ON tag_readings (agent_id
 CREATE TABLE IF NOT EXISTS tag_snapshots (
   epc TEXT NOT NULL,
   agent_id TEXT NOT NULL,
+  agent_zone TEXT NOT NULL DEFAULT '',
   rssi INTEGER NOT NULL,
   avg_rssi REAL NOT NULL,
   pc INTEGER NOT NULL,
