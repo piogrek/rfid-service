@@ -1,5 +1,12 @@
 import type { DatabaseService } from '../services/database';
 
+export async function handleCurrent(request: Request, db: DatabaseService): Promise<Response> {
+  const url = new URL(request.url);
+  const agentId = url.searchParams.get('agent_id') ?? 'agent-1';
+  const tags = await db.getCurrentTags(agentId);
+  return Response.json({ agent_id: agentId, tags });
+}
+
 export async function handleLatest(request: Request, db: DatabaseService): Promise<Response> {
   const url = new URL(request.url);
   const agentId = url.searchParams.get('agent_id') ?? 'agent-1';

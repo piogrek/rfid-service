@@ -1,7 +1,7 @@
 import type { Env } from './types';
 import { D1DatabaseService } from './services/d1-database';
 import { handleIngest } from './handlers/ingest';
-import { handleLatest, handleHistory } from './handlers/query';
+import { handleLatest, handleHistory, handleCurrent } from './handlers/query';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -11,6 +11,8 @@ export default {
     switch (url.pathname) {
       case '/api/ingest':
         return handleIngest(request, db, env);
+      case '/api/tags/current':
+        return handleCurrent(request, db);
       case '/api/tags/latest':
         return handleLatest(request, db);
       case '/api/tags/history':

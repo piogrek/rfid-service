@@ -1,4 +1,4 @@
-import type { TagSnapshot, StoredTagReading } from '../types';
+import type { TagSnapshot, StoredTagReading, CurrentTagState } from '../types';
 import type { DatabaseService } from './database';
 
 export class D1DatabaseService implements DatabaseService {
@@ -7,24 +7,35 @@ export class D1DatabaseService implements DatabaseService {
   async storeSnapshot(snapshot: TagSnapshot): Promise<number> {
     if (!snapshot.tags.length) return 0;
 
-    const stmt = this.db.prepare(
+    const insertReading = this.db.prepare(
       `INSERT INTO tag_readings (agent_id, epc, rssi, avg_rssi, pc, distance, zone, read_count, tag_last_seen)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
-    const batch = snapshot.tags.map((tag) =>
-      stmt.bind(
-        snapshot.agent_id,
-        tag.epc,
-        tag.rssi,
-        tag.avg_rssi,
-        tag.pc,
-        tag.distance_m,
-        tag.zone,
-        tag.read_count,
-        tag.last_seen
-      )
+    const upsertSnapshot = this.db.prepare(
+      `INSERT INTO tag_snapshots (epc, agent_id, rssi, avg_rssi, pc, distance, zone, read_count, tag_last_seen, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT (epc, agent_id) DO UPDATE SET
+         rssi = excluded.rssi,
+         avg_rssi = excluded.avg_rssi,
+         pc = excluded.pc,
+         distance = excluded.distance,
+         zone = excluded.zone,
+         read_count = excluded.read_count,
+         tag_last_seen = excluded.tag_last_seen,
+         updated_at = excluded.updated_at`
     );
+
+    const batch = snapshot.tags.flatMap((tag) => [
+      insertReading.bind(
+        snapshot.agent_id, tag.epc, tag.rssi, tag.avg_rssi, tag.pc,
+        tag.distance_m, tag.zone, tag.read_count, tag.last_seen
+      ),
+      upsertSnapshot.bind(
+        tag.epc, snapshot.agent_id, tag.rssi, tag.avg_rssi, tag.pc,
+        tag.distance_m, tag.zone, tag.read_count, tag.last_seen
+      ),
+    ]);
 
     await this.db.batch(batch);
     return snapshot.tags.length;
@@ -60,6 +71,14 @@ export class D1DatabaseService implements DatabaseService {
       )
       .bind(agentId, agentId)
       .all<StoredTagReading>();
+    return result.results;
+  }
+
+  async getCurrentTags(agentId: string): Promise<CurrentTagState[]> {
+    const result = await this.db
+      .prepare('SELECT * FROM tag_snapshots WHERE agent_id = ? ORDER BY distance ASC')
+      .bind(agentId)
+      .all<CurrentTagState>();
     return result.results;
   }
 }
