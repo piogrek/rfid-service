@@ -1,10 +1,6 @@
 import type { Env } from '../types';
 import type { DatabaseService } from '../services/database';
-
-function checkAuth(request: Request, env: Env): boolean {
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '');
-  return !!token && token === env.INGEST_TOKEN;
-}
+import { authenticateUser, requireRole } from '../middleware/auth';
 
 function extractId(pathname: string): number | null {
   const id = parseInt(pathname.split('/').pop() ?? '', 10);
@@ -16,7 +12,10 @@ export async function handleTagRoles(request: Request, db: DatabaseService, env:
     return Response.json(await db.listTagRoles());
   }
 
-  if (!checkAuth(request, env)) return new Response('Unauthorized', { status: 401 });
+  const auth = await authenticateUser(request, env);
+  if (!auth.ok) return auth.response;
+  const denied = requireRole(auth.value, 'admin');
+  if (denied) return denied;
 
   if (request.method === 'POST') {
     const body = await request.json() as { name?: string; patterns?: string[] };
