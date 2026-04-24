@@ -1,0 +1,28 @@
+{
+  "name": "rfid-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute rfid-db --local --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute rfid-db --remote --file=./schema.sql"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/piogrek/rfid-service.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/piogrek/rfid-service/issues"
+  },
+  "homepage": "https://github.com/piogrek/rfid-service#readme",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260424.1",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.84.1"
+  }
+}
