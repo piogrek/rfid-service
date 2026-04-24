@@ -4,7 +4,7 @@ export interface TagReading {
   avg_rssi: number;
   pc: number;
   distance_m: number;
-  zone: string;
+  proximity: string;
   read_count: number;
   last_seen: string;
 }
@@ -25,7 +25,7 @@ export interface StoredTagReading {
   avg_rssi: number;
   pc: number;
   distance: number;
-  zone: string;
+  proximity: string;
   read_count: number;
   tag_last_seen: string;
   received_at: string;
@@ -39,9 +39,37 @@ export interface CurrentTagState {
   avg_rssi: number;
   pc: number;
   distance: number;
-  zone: string;
+  proximity: string;
   read_count: number;
   tag_last_seen: string;
+  updated_at: string;
+}
+
+export interface TagRole {
+  id: number;
+  name: string;
+  patterns: string[];
+  created_at: string;
+}
+
+export interface Zone {
+  id: number;
+  name: string;
+  code: string;
+  location: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface Asset {
+  id: number;
+  name: string;
+  asset_type: string;
+  location: Record<string, unknown>;
+  location_description: string;
+  attributes: Record<string, unknown>;
+  epc: string;
+  zone_id: number | null;
+  created_at: string;
   updated_at: string;
 }
 

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS tag_readings (
   avg_rssi REAL NOT NULL,
   pc INTEGER NOT NULL,
   distance REAL NOT NULL,
-  zone TEXT NOT NULL,
+  proximity TEXT NOT NULL,
   read_count INTEGER NOT NULL,
   tag_last_seen TEXT NOT NULL,
   received_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS tag_snapshots (
   avg_rssi REAL NOT NULL,
   pc INTEGER NOT NULL,
   distance REAL NOT NULL,
-  zone TEXT NOT NULL,
+  proximity TEXT NOT NULL,
   read_count INTEGER NOT NULL,
   tag_last_seen TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -33,3 +33,34 @@ CREATE TABLE IF NOT EXISTS tag_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tag_snapshots_agent ON tag_snapshots (agent_id, distance);
+
+-- Tag roles: classify tags by EPC pattern
+CREATE TABLE IF NOT EXISTS tag_roles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  patterns TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Zones: physical locations matching agent_zone codes
+CREATE TABLE IF NOT EXISTS zones (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  code TEXT NOT NULL UNIQUE,
+  location TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Assets: tracked items associated with RFID tags
+CREATE TABLE IF NOT EXISTS assets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  asset_type TEXT NOT NULL DEFAULT '',
+  location TEXT NOT NULL DEFAULT '{}',
+  location_description TEXT NOT NULL DEFAULT '',
+  attributes TEXT NOT NULL DEFAULT '{}',
+  epc TEXT NOT NULL DEFAULT '',
+  zone_id INTEGER REFERENCES zones(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
