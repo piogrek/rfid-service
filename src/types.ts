@@ -98,6 +98,5 @@ export interface UserWithPassword extends User {
 
 export interface Env {
   DB: D1Database;
-  INGEST_TOKEN: string;
   JWT_SECRET: string;
 }

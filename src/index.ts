@@ -17,7 +17,7 @@ export default {
     const path = url.pathname;
 
     if (path.startsWith('/api/auth')) return handleAuth(request, db, env, url);
-    if (path === '/api/ingest') return handleIngest(request, db, env);
+    if (path === '/api/ingest') return handleIngest(request, db);
 
     const auth = await authenticateUser(request, env);
     if (!auth.ok) return auth.response;
