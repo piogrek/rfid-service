@@ -20,6 +20,10 @@ export interface StoredTagReading {
   id: number;
   agent_id: string;
   agent_zone: string;
+  /** API key that authenticated the ingest (agent). */
+  api_key_id: number | null;
+  /** Display name of that API key (agent name). */
+  api_key_name: string;
   epc: string;
   rssi: number;
   avg_rssi: number;
@@ -35,6 +39,8 @@ export interface CurrentTagState {
   epc: string;
   agent_id: string;
   agent_zone: string;
+  api_key_id: number | null;
+  api_key_name: string;
   rssi: number;
   avg_rssi: number;
   pc: number;

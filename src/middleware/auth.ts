@@ -15,7 +15,7 @@ export async function authenticateAgent(request: Request, db: DatabaseService): 
 
   const prefix = token.substring(0, 13);
   const stored = await db.getApiKeyByPrefix(prefix);
-  if (!stored) return { ok: false, response: new Response('Invalid API key', { status: 401 }) };
+  if (!stored) return { ok: false, response: new Response('Invalid API key (not found)', { status: 401 }) };
 
   if (stored.expires_at && new Date(stored.expires_at) < new Date()) {
     return { ok: false, response: new Response('API key expired', { status: 401 }) };
@@ -25,7 +25,7 @@ export async function authenticateAgent(request: Request, db: DatabaseService): 
   const storedBytes = new TextEncoder().encode(stored.key_hash);
   const computedBytes = new TextEncoder().encode(hash);
   if (storedBytes.byteLength !== computedBytes.byteLength || !crypto.subtle.timingSafeEqual(storedBytes, computedBytes)) {
-    return { ok: false, response: new Response('Invalid API key', { status: 401 }) };
+    return { ok: false, response: new Response('Invalid API key (hash mismatch)', { status: 401 }) };
   }
 
   db.touchApiKey(stored.id);

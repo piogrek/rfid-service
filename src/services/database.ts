@@ -11,7 +11,7 @@ export interface AssetInput {
 }
 
 export interface DatabaseService {
-  storeSnapshot(snapshot: TagSnapshot): Promise<number>;
+  storeSnapshot(snapshot: TagSnapshot, apiKey: ApiKey): Promise<number>;
   getRecentByAgent(agentId: string, limit: number): Promise<StoredTagReading[]>;
   getRecentByEpc(epc: string, limit: number): Promise<StoredTagReading[]>;
   getLatestPerTag(agentId: string): Promise<StoredTagReading[]>;

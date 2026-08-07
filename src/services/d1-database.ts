@@ -20,19 +20,25 @@ function parseAsset(r: RawAsset): Asset {
 export class D1DatabaseService implements DatabaseService {
   constructor(private db: D1Database) {}
 
-  async storeSnapshot(snapshot: TagSnapshot): Promise<number> {
+  async storeSnapshot(snapshot: TagSnapshot, apiKey: ApiKey): Promise<number> {
     if (!snapshot.tags.length) return 0;
 
     const insertReading = this.db.prepare(
-      `INSERT INTO tag_readings (agent_id, agent_zone, epc, rssi, avg_rssi, pc, distance, proximity, read_count, tag_last_seen)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO tag_readings (
+         agent_id, agent_zone, api_key_id, api_key_name,
+         epc, rssi, avg_rssi, pc, distance, proximity, read_count, tag_last_seen
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     const upsertSnapshot = this.db.prepare(
-      `INSERT INTO tag_snapshots (epc, agent_id, agent_zone, rssi, avg_rssi, pc, distance, proximity, read_count, tag_last_seen, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `INSERT INTO tag_snapshots (
+         epc, agent_id, agent_zone, api_key_id, api_key_name,
+         rssi, avg_rssi, pc, distance, proximity, read_count, tag_last_seen, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
        ON CONFLICT (epc, agent_id) DO UPDATE SET
          agent_zone = excluded.agent_zone,
+         api_key_id = excluded.api_key_id,
+         api_key_name = excluded.api_key_name,
          rssi = excluded.rssi,
          avg_rssi = excluded.avg_rssi,
          pc = excluded.pc,
@@ -45,12 +51,32 @@ export class D1DatabaseService implements DatabaseService {
 
     const batch = snapshot.tags.flatMap((tag) => [
       insertReading.bind(
-        snapshot.agent_id, snapshot.agent_zone, tag.epc, tag.rssi, tag.avg_rssi, tag.pc,
-        tag.distance_m, tag.proximity, tag.read_count, tag.last_seen
+        snapshot.agent_id,
+        snapshot.agent_zone,
+        apiKey.id,
+        apiKey.name,
+        tag.epc,
+        tag.rssi,
+        tag.avg_rssi,
+        tag.pc,
+        tag.distance_m,
+        tag.proximity,
+        tag.read_count,
+        tag.last_seen
       ),
       upsertSnapshot.bind(
-        tag.epc, snapshot.agent_id, snapshot.agent_zone, tag.rssi, tag.avg_rssi, tag.pc,
-        tag.distance_m, tag.proximity, tag.read_count, tag.last_seen
+        tag.epc,
+        snapshot.agent_id,
+        snapshot.agent_zone,
+        apiKey.id,
+        apiKey.name,
+        tag.rssi,
+        tag.avg_rssi,
+        tag.pc,
+        tag.distance_m,
+        tag.proximity,
+        tag.read_count,
+        tag.last_seen
       ),
     ]);
 

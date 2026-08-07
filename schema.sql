@@ -2,6 +2,8 @@ CREATE TABLE IF NOT EXISTS tag_readings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   agent_id TEXT NOT NULL,
   agent_zone TEXT NOT NULL DEFAULT '',
+  api_key_id INTEGER,
+  api_key_name TEXT NOT NULL DEFAULT '',
   epc TEXT NOT NULL,
   rssi INTEGER NOT NULL,
   avg_rssi REAL NOT NULL,
@@ -15,12 +17,15 @@ CREATE TABLE IF NOT EXISTS tag_readings (
 
 CREATE INDEX IF NOT EXISTS idx_tag_readings_epc_time ON tag_readings (epc, received_at);
 CREATE INDEX IF NOT EXISTS idx_tag_readings_agent_time ON tag_readings (agent_id, received_at);
+CREATE INDEX IF NOT EXISTS idx_tag_readings_api_key ON tag_readings (api_key_id, received_at);
 
 -- Current state of each tag per agent, updated on every ingest.
 CREATE TABLE IF NOT EXISTS tag_snapshots (
   epc TEXT NOT NULL,
   agent_id TEXT NOT NULL,
   agent_zone TEXT NOT NULL DEFAULT '',
+  api_key_id INTEGER,
+  api_key_name TEXT NOT NULL DEFAULT '',
   rssi INTEGER NOT NULL,
   avg_rssi REAL NOT NULL,
   pc INTEGER NOT NULL,
@@ -33,6 +38,7 @@ CREATE TABLE IF NOT EXISTS tag_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tag_snapshots_agent ON tag_snapshots (agent_id, distance);
+CREATE INDEX IF NOT EXISTS idx_tag_snapshots_api_key ON tag_snapshots (api_key_id);
 
 -- Tag roles: classify tags by EPC pattern
 CREATE TABLE IF NOT EXISTS tag_roles (

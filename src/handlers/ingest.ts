@@ -21,6 +21,11 @@ export async function handleIngest(request: Request, db: DatabaseService): Promi
     return new Response('Invalid payload', { status: 400 });
   }
 
-  const count = await db.storeSnapshot(snapshot);
-  return Response.json({ stored: count });
+  // Persist which agent API key authenticated this ingest (name + id).
+  const count = await db.storeSnapshot(snapshot, auth.value);
+  return Response.json({
+    stored: count,
+    api_key_id: auth.value.id,
+    api_key_name: auth.value.name,
+  });
 }
