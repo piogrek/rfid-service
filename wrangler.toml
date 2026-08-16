@@ -26,3 +26,9 @@ invocation_logs = true
 enabled = false
 persist = true
 head_sampling_rate = 1
+
+[vars]
+PORTAL_ORIGINS = "http://localhost:3000,https://trackalong.dev,https://www.trackalong.dev"
+
+# Set TURNSTILE_SECRET with:
+# wrangler secret put TURNSTILE_SECRET

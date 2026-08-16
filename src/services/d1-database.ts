@@ -1,4 +1,4 @@
-import type { TagSnapshot, StoredTagReading, CurrentTagState, TagRole, Zone, Asset, ApiKey, User, UserWithPassword } from '../types';
+import type { TagSnapshot, StoredTagReading, CurrentTagState, TagRole, Zone, Asset, ApiKey, User, UserWithPassword, Message, Reader, ReaderConfig } from '../types';
 import type { DatabaseService, AssetInput } from './database';
 
 type RawTagRole = Omit<TagRole, 'patterns'> & { patterns: string };
@@ -309,4 +309,167 @@ export class D1DatabaseService implements DatabaseService {
   async deleteExpiredRefreshTokens(): Promise<void> {
     await this.db.prepare("DELETE FROM refresh_tokens WHERE expires_at < datetime('now')").run();
   }
+
+  // --- Messages ---
+
+  async createMessage(name: string, email: string, content: string | null): Promise<Message> {
+    const result = await this.db
+      .prepare('INSERT INTO messages (name, email, content) VALUES (?, ?, ?) RETURNING *')
+      .bind(name, email, content)
+      .first<Message>();
+    return result!;
+  }
+
+  async listMessages(): Promise<Message[]> {
+    const result = await this.db
+      .prepare('SELECT * FROM messages ORDER BY created_at DESC')
+      .all<Message>();
+    return result.results;
+  }
+
+  async getMessageById(id: number): Promise<Message | null> {
+    return this.db
+      .prepare('SELECT * FROM messages WHERE id = ?')
+      .bind(id)
+      .first<Message>();
+  }
+
+  // --- Readers (RFID devices) ---
+
+  async registerReaderClaimCode(hardwareId: string, claimCode: string): Promise<void> {
+    const existing = await this.db
+      .prepare('SELECT id FROM api_keys WHERE hardware_id = ?')
+      .bind(hardwareId)
+      .first<{ id: number }>();
+
+    if (existing) {
+      return;
+    }
+
+    await this.db
+      .prepare(
+        `INSERT INTO api_keys (name, key_prefix, key_hash, description, hardware_id, claim_code)
+         VALUES (?, '', '', 'Unclaimed reader', ?, ?)`
+      )
+      .bind(`Reader ${hardwareId}`, hardwareId, claimCode)
+      .run();
+  }
+
+  async claimReader(
+    claimCode: string,
+    zoneId: number,
+    userId: number,
+    apiKey: string,
+    apiKeyHash: string
+  ): Promise<ReaderConfig> {
+    const reader = await this.db
+      .prepare('SELECT * FROM api_keys WHERE claim_code = ? AND claimed_at IS NULL')
+      .bind(claimCode)
+      .first<ApiKey>();
+
+    if (!reader) {
+      throw new Error('Invalid or already claimed code');
+    }
+
+    const zone = await this.db
+      .prepare('SELECT code, name FROM zones WHERE id = ?')
+      .bind(zoneId)
+      .first<{ code: string; name: string }>();
+
+    if (!zone) {
+      throw new Error('Zone not found');
+    }
+
+    const keyPrefix = apiKey.substring(0, 10);
+    const deviceName = `Reader ${reader.hardware_id}`;
+
+    await this.db
+      .prepare(
+        `UPDATE api_keys SET
+           name = ?,
+           key_prefix = ?,
+           key_hash = ?,
+           zone_id = ?,
+           claimed_at = datetime('now'),
+           claimed_by_user_id = ?,
+           description = ?
+         WHERE id = ?`
+      )
+      .bind(
+        deviceName,
+        keyPrefix,
+        apiKeyHash,
+        zoneId,
+        userId,
+        `Claimed to zone: ${zone.name}`,
+        reader.id
+      )
+      .run();
+
+    return {
+      api_key: apiKey,
+      zone_code: zone.code,
+      device_name: deviceName,
+    };
+  }
+
+  async getReaderByClaimCode(claimCode: string): Promise<ApiKey | null> {
+    return this.db
+      .prepare('SELECT * FROM api_keys WHERE claim_code = ?')
+      .bind(claimCode)
+      .first<ApiKey>();
+  }
+
+  async getReaderByHardwareId(hardwareId: string): Promise<ApiKey | null> {
+    return this.db
+      .prepare('SELECT * FROM api_keys WHERE hardware_id = ?')
+      .bind(hardwareId)
+      .first<ApiKey>();
+  }
+
+  async getReaderConfig(apiKeyId: number): Promise<ReaderConfig | null> {
+    const result = await this.db
+      .prepare(
+        `SELECT ak.name, z.code as zone_code
+         FROM api_keys ak
+         LEFT JOIN zones z ON ak.zone_id = z.id
+         WHERE ak.id = ? AND ak.claimed_at IS NOT NULL`
+      )
+      .bind(apiKeyId)
+      .first<{ name: string; zone_code: string | null }>();
+
+    if (!result) {
+      return null;
+    }
+
+    return {
+      api_key: '',
+      zone_code: result.zone_code || '',
+      device_name: result.name,
+    };
+  }
+
+  async listReaders(): Promise<Reader[]> {
+    const result = await this.db
+      .prepare(
+        `SELECT
+           ak.id,
+           ak.name,
+           ak.hardware_id,
+           ak.claim_code,
+           ak.zone_id,
+           z.name as zone_name,
+           z.code as zone_code,
+           ak.claimed_at,
+           ak.claimed_by_user_id,
+           ak.created_at
+         FROM api_keys ak
+         LEFT JOIN zones z ON ak.zone_id = z.id
+         WHERE ak.hardware_id IS NOT NULL
+         ORDER BY ak.claimed_at DESC NULLS LAST, ak.created_at DESC`
+      )
+      .all<Reader>();
+    return result.results;
+  }
 }
+

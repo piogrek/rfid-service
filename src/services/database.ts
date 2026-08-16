@@ -1,4 +1,4 @@
-import type { TagSnapshot, StoredTagReading, CurrentTagState, TagRole, Zone, Asset, ApiKey, User, UserWithPassword } from '../types';
+import type { TagSnapshot, StoredTagReading, CurrentTagState, TagRole, Zone, Asset, ApiKey, User, UserWithPassword, Message, Reader, ReaderConfig } from '../types';
 
 export interface AssetInput {
   name: string;
@@ -51,4 +51,17 @@ export interface DatabaseService {
   getRefreshToken(tokenHash: string): Promise<{ id: number; user_id: number; expires_at: string } | null>;
   deleteRefreshToken(id: number): Promise<void>;
   deleteExpiredRefreshTokens(): Promise<void>;
+
+  // Messages
+  createMessage(name: string, email: string, content: string | null): Promise<Message>;
+  listMessages(): Promise<Message[]>;
+  getMessageById(id: number): Promise<Message | null>;
+
+  // Readers (RFID devices)
+  registerReaderClaimCode(hardwareId: string, claimCode: string): Promise<void>;
+  claimReader(claimCode: string, zoneId: number, userId: number, apiKey: string, apiKeyHash: string): Promise<ReaderConfig>;
+  getReaderByClaimCode(claimCode: string): Promise<ApiKey | null>;
+  getReaderByHardwareId(hardwareId: string): Promise<ApiKey | null>;
+  getReaderConfig(apiKeyId: number): Promise<ReaderConfig | null>;
+  listReaders(): Promise<Reader[]>;
 }

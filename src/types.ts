@@ -87,6 +87,30 @@ export interface ApiKey {
   expires_at: string | null;
   created_at: string;
   last_used_at: string | null;
+  hardware_id: string | null;
+  claim_code: string | null;
+  zone_id: number | null;
+  claimed_at: string | null;
+  claimed_by_user_id: number | null;
+}
+
+export interface Reader {
+  id: number;
+  name: string;
+  hardware_id: string;
+  claim_code: string | null;
+  zone_id: number | null;
+  zone_name: string | null;
+  zone_code: string | null;
+  claimed_at: string | null;
+  claimed_by_user_id: number | null;
+  created_at: string;
+}
+
+export interface ReaderConfig {
+  api_key: string;
+  zone_code: string;
+  device_name: string;
 }
 
 export interface User {
@@ -102,7 +126,18 @@ export interface UserWithPassword extends User {
   password_hash: string;
 }
 
+export interface Message {
+  id: number;
+  name: string;
+  email: string;
+  content: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Env {
   DB: D1Database;
   JWT_SECRET: string;
+  TURNSTILE_SECRET: string;
+  PORTAL_ORIGINS: string;
 }
