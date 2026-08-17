@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS tag_roles (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Zones: physical locations matching agent_zone codes
+-- Zones: physical locations matching reader zone codes (agent_zone)
 CREATE TABLE IF NOT EXISTS zones (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,

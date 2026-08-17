@@ -19,7 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_tag_readings_epc_time ON tag_readings (epc, recei
 CREATE INDEX IF NOT EXISTS idx_tag_readings_agent_time ON tag_readings (agent_id, received_at);
 CREATE INDEX IF NOT EXISTS idx_tag_readings_api_key ON tag_readings (api_key_id, received_at);
 
--- Current state of each tag per agent, updated on every ingest.
+-- Current state of each tag per reader (agent_id), updated on every ingest.
 CREATE TABLE IF NOT EXISTS tag_snapshots (
   epc TEXT NOT NULL,
   agent_id TEXT NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS tag_roles (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Zones: physical locations matching agent_zone codes
+-- Zones: physical locations matching reader zone codes (agent_zone)
 CREATE TABLE IF NOT EXISTS zones (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS assets (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- API keys for agent authentication
+-- API keys for reader authentication
 CREATE TABLE IF NOT EXISTS api_keys (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,

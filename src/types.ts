@@ -20,9 +20,9 @@ export interface StoredTagReading {
   id: number;
   agent_id: string;
   agent_zone: string;
-  /** API key that authenticated the ingest (agent). */
+  /** API key that authenticated the ingest (reader credentials). */
   api_key_id: number | null;
-  /** Display name of that API key (agent name). */
+  /** Display name of that API key (reader name). */
   api_key_name: string;
   epc: string;
   rssi: number;

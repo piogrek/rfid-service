@@ -1,4 +1,4 @@
--- Record which agent API key produced each ingest.
+-- Record which reader API key produced each ingest.
 
 ALTER TABLE tag_readings ADD COLUMN api_key_id INTEGER;
 ALTER TABLE tag_readings ADD COLUMN api_key_name TEXT NOT NULL DEFAULT '';

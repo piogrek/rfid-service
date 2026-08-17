@@ -2,6 +2,10 @@
 
 Cloudflare Worker backend for Track Along ingest, query, auth, and admin APIs.
 
+Product terminology:
+- Reader: physical RFID unit (claimed via admin, reports sightings).
+- Legacy wire fields `agent_id` / `agent_zone` are still used for telemetry and DB; UI surfaces them as "Reader" / "Zone".
+
 ## Messages API (Contact Us)
 
 New entity: `messages`

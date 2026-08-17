@@ -1,4 +1,4 @@
--- API keys for agent authentication
+-- API keys for reader authentication
 CREATE TABLE IF NOT EXISTS api_keys (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
