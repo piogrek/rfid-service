@@ -34,7 +34,7 @@ function withCors(response: Response, origin: string | null): Response {
 
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', origin);
-  headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   headers.set('Vary', 'Origin');
 

@@ -1,7 +1,6 @@
 import type { Env, ApiKey } from '../types';
 import type { DatabaseService } from '../services/database';
-import { hashApiKey } from '../services/crypto';
-import { verifyJwt, type JwtPayload } from '../services/crypto';
+import { hashApiKey, API_KEY_PREFIX_LENGTH, verifyJwt, type JwtPayload } from '../services/crypto';
 
 export type AuthResult<T> = { ok: true; value: T } | { ok: false; response: Response };
 
@@ -13,7 +12,7 @@ export async function authenticateAgent(request: Request, db: DatabaseService): 
     return { ok: false, response: new Response('Invalid API key format', { status: 401 }) };
   }
 
-  const prefix = token.substring(0, 13);
+  const prefix = token.substring(0, API_KEY_PREFIX_LENGTH);
   const stored = await db.getApiKeyByPrefix(prefix);
   if (!stored) return { ok: false, response: new Response('Invalid API key (not found)', { status: 401 }) };
 

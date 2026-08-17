@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS assets (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- API keys for reader authentication
+-- API keys for reader authentication (also stores claimed RFID readers)
 CREATE TABLE IF NOT EXISTS api_keys (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
@@ -80,9 +80,21 @@ CREATE TABLE IF NOT EXISTS api_keys (
   description TEXT NOT NULL DEFAULT '',
   expires_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  last_used_at TEXT
+  last_used_at TEXT,
+  hardware_id TEXT,
+  claim_code TEXT,
+  zone_id INTEGER REFERENCES zones(id),
+  claimed_at TEXT,
+  claimed_by_user_id INTEGER REFERENCES users(id),
+  mqtt_server TEXT,
+  mqtt_port TEXT DEFAULT '1883',
+  timezone TEXT DEFAULT 'CET-1CEST,M3.5.0/2,M10.5.0/3',
+  bootstrap_api_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_api_keys_prefix ON api_keys (key_prefix);
+CREATE INDEX IF NOT EXISTS idx_api_keys_hardware_id ON api_keys (hardware_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_claim_code ON api_keys (claim_code);
+CREATE INDEX IF NOT EXISTS idx_api_keys_zone_id ON api_keys (zone_id);
 
 -- Users for frontend authentication
 CREATE TABLE IF NOT EXISTS users (

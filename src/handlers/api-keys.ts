@@ -1,7 +1,7 @@
 import type { Env } from '../types';
 import type { DatabaseService } from '../services/database';
 import { authenticateUser, requireRole } from '../middleware/auth';
-import { generateApiKey, hashApiKey } from '../services/crypto';
+import { generateApiKey, hashApiKey, API_KEY_PREFIX_LENGTH } from '../services/crypto';
 
 function extractId(pathname: string): number | null {
   const id = parseInt(pathname.split('/').pop() ?? '', 10);
@@ -23,7 +23,7 @@ export async function handleApiKeys(request: Request, db: DatabaseService, env: 
     if (!body.name) return new Response('name is required', { status: 400 });
 
     const rawKey = generateApiKey();
-    const keyPrefix = rawKey.substring(0, 13);
+    const keyPrefix = rawKey.substring(0, API_KEY_PREFIX_LENGTH);
     const keyHash = await hashApiKey(rawKey);
     const apiKey = await db.createApiKey(body.name, keyPrefix, keyHash, body.description ?? '', body.expires_at ?? null);
 

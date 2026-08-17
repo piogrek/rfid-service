@@ -2,8 +2,11 @@ const PBKDF2_ITERATIONS = 100_000;
 const SALT_LENGTH = 16;
 const KEY_LENGTH = 32;
 
-function toHex(buf: ArrayBuffer): string {
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+function toHex(buf: ArrayBuffer | ArrayBufferView): string {
+  const bytes = ArrayBuffer.isView(buf)
+    ? new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength)
+    : new Uint8Array(buf);
+  return [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function fromHex(hex: string): Uint8Array {
@@ -45,6 +48,9 @@ export async function hashApiKey(key: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key));
   return toHex(digest);
 }
+
+/** Lookup prefix length for reader API keys (`rfid_` + first 8 hex chars). */
+export const API_KEY_PREFIX_LENGTH = 13;
 
 export function generateApiKey(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));

@@ -9,7 +9,7 @@ export async function handleClaim(request: Request, db: DatabaseService, env: En
   }
 
   const body = await request.json() as {
-    action?: 'register' | 'claim';
+    action?: 'register' | 'claim' | 'status';
     hardware_id?: string;
     claim_code?: string;
     zone_id?: number;
@@ -22,6 +22,19 @@ export async function handleClaim(request: Request, db: DatabaseService, env: En
 
     await db.registerReaderClaimCode(body.hardware_id, body.claim_code);
     return Response.json({ registered: true });
+  }
+
+  if (body.action === 'status') {
+    if (!body.hardware_id || !body.claim_code) {
+      return new Response('hardware_id and claim_code are required', { status: 400 });
+    }
+
+    const status = await db.getClaimStatus(body.hardware_id, body.claim_code);
+    if (!status) {
+      return new Response('Unknown reader', { status: 404 });
+    }
+
+    return Response.json(status);
   }
 
   if (body.action === 'claim' || !body.action) {

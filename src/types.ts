@@ -92,6 +92,9 @@ export interface ApiKey {
   zone_id: number | null;
   claimed_at: string | null;
   claimed_by_user_id: number | null;
+  mqtt_server: string | null;
+  mqtt_port: string | null;
+  timezone: string | null;
 }
 
 export interface Reader {
@@ -105,12 +108,32 @@ export interface Reader {
   claimed_at: string | null;
   claimed_by_user_id: number | null;
   created_at: string;
+  mqtt_server: string | null;
+  mqtt_port: string | null;
+  timezone: string | null;
 }
 
+/** Device-facing config. api_key is only set on one-time claim bootstrap. */
 export interface ReaderConfig {
   api_key: string;
   zone_code: string;
   device_name: string;
+  mqtt_server: string;
+  mqtt_port: string;
+  timezone: string;
+}
+
+export interface ReaderUpdateInput {
+  name: string;
+  zone_id: number;
+  mqtt_server?: string | null;
+  mqtt_port?: string | null;
+  timezone?: string | null;
+}
+
+export interface ClaimStatusResult {
+  claimed: boolean;
+  config: ReaderConfig | null;
 }
 
 export interface User {

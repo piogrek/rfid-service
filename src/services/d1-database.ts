@@ -1,5 +1,24 @@
-import type { TagSnapshot, StoredTagReading, CurrentTagState, TagRole, Zone, Asset, ApiKey, User, UserWithPassword, Message, Reader, ReaderConfig } from '../types';
+import type {
+  TagSnapshot,
+  StoredTagReading,
+  CurrentTagState,
+  TagRole,
+  Zone,
+  Asset,
+  ApiKey,
+  User,
+  UserWithPassword,
+  Message,
+  Reader,
+  ReaderConfig,
+  ReaderUpdateInput,
+  ClaimStatusResult,
+} from '../types';
 import type { DatabaseService, AssetInput } from './database';
+import { API_KEY_PREFIX_LENGTH } from './crypto';
+
+const DEFAULT_MQTT_PORT = '1883';
+const DEFAULT_TIMEZONE = 'CET-1CEST,M3.5.0/2,M10.5.0/3';
 
 type RawTagRole = Omit<TagRole, 'patterns'> & { patterns: string };
 type RawZone = Omit<Zone, 'location'> & { location: string };
@@ -365,7 +384,7 @@ export class D1DatabaseService implements DatabaseService {
     const reader = await this.db
       .prepare('SELECT * FROM api_keys WHERE claim_code = ? AND claimed_at IS NULL')
       .bind(claimCode)
-      .first<ApiKey>();
+      .first<ApiKey & { bootstrap_api_key?: string | null }>();
 
     if (!reader) {
       throw new Error('Invalid or already claimed code');
@@ -380,8 +399,11 @@ export class D1DatabaseService implements DatabaseService {
       throw new Error('Zone not found');
     }
 
-    const keyPrefix = apiKey.substring(0, 10);
+    const keyPrefix = apiKey.substring(0, API_KEY_PREFIX_LENGTH);
     const deviceName = `Reader ${reader.hardware_id}`;
+    const mqttServer = reader.mqtt_server ?? '';
+    const mqttPort = reader.mqtt_port || DEFAULT_MQTT_PORT;
+    const timezone = reader.timezone || DEFAULT_TIMEZONE;
 
     await this.db
       .prepare(
@@ -392,7 +414,11 @@ export class D1DatabaseService implements DatabaseService {
            zone_id = ?,
            claimed_at = datetime('now'),
            claimed_by_user_id = ?,
-           description = ?
+           description = ?,
+           mqtt_server = ?,
+           mqtt_port = ?,
+           timezone = ?,
+           bootstrap_api_key = ?
          WHERE id = ?`
       )
       .bind(
@@ -402,6 +428,10 @@ export class D1DatabaseService implements DatabaseService {
         zoneId,
         userId,
         `Claimed to zone: ${zone.name}`,
+        mqttServer,
+        mqttPort,
+        timezone,
+        apiKey,
         reader.id
       )
       .run();
@@ -410,7 +440,67 @@ export class D1DatabaseService implements DatabaseService {
       api_key: apiKey,
       zone_code: zone.code,
       device_name: deviceName,
+      mqtt_server: mqttServer,
+      mqtt_port: mqttPort,
+      timezone,
     };
+  }
+
+  async getClaimStatus(hardwareId: string, claimCode: string): Promise<ClaimStatusResult | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT
+           ak.id,
+           ak.name,
+           ak.claimed_at,
+           ak.bootstrap_api_key,
+           ak.mqtt_server,
+           ak.mqtt_port,
+           ak.timezone,
+           z.code as zone_code
+         FROM api_keys ak
+         LEFT JOIN zones z ON ak.zone_id = z.id
+         WHERE ak.hardware_id = ? AND ak.claim_code = ?`
+      )
+      .bind(hardwareId, claimCode)
+      .first<{
+        id: number;
+        name: string;
+        claimed_at: string | null;
+        bootstrap_api_key: string | null;
+        mqtt_server: string | null;
+        mqtt_port: string | null;
+        timezone: string | null;
+        zone_code: string | null;
+      }>();
+
+    if (!row) {
+      return null;
+    }
+
+    if (!row.claimed_at) {
+      return { claimed: false, config: null };
+    }
+
+    if (!row.bootstrap_api_key) {
+      return { claimed: true, config: null };
+    }
+
+    const config: ReaderConfig = {
+      api_key: row.bootstrap_api_key,
+      zone_code: row.zone_code || '',
+      device_name: row.name,
+      mqtt_server: row.mqtt_server ?? '',
+      mqtt_port: row.mqtt_port || DEFAULT_MQTT_PORT,
+      timezone: row.timezone || DEFAULT_TIMEZONE,
+    };
+
+    await this.db
+      .prepare('UPDATE api_keys SET bootstrap_api_key = NULL WHERE id = ?')
+      .bind(row.id)
+      .run();
+
+    return { claimed: true, config };
   }
 
   async getReaderByClaimCode(claimCode: string): Promise<ApiKey | null> {
@@ -430,13 +520,24 @@ export class D1DatabaseService implements DatabaseService {
   async getReaderConfig(apiKeyId: number): Promise<ReaderConfig | null> {
     const result = await this.db
       .prepare(
-        `SELECT ak.name, z.code as zone_code
+        `SELECT
+           ak.name,
+           ak.mqtt_server,
+           ak.mqtt_port,
+           ak.timezone,
+           z.code as zone_code
          FROM api_keys ak
          LEFT JOIN zones z ON ak.zone_id = z.id
          WHERE ak.id = ? AND ak.claimed_at IS NOT NULL`
       )
       .bind(apiKeyId)
-      .first<{ name: string; zone_code: string | null }>();
+      .first<{
+        name: string;
+        mqtt_server: string | null;
+        mqtt_port: string | null;
+        timezone: string | null;
+        zone_code: string | null;
+      }>();
 
     if (!result) {
       return null;
@@ -446,6 +547,9 @@ export class D1DatabaseService implements DatabaseService {
       api_key: '',
       zone_code: result.zone_code || '',
       device_name: result.name,
+      mqtt_server: result.mqtt_server ?? '',
+      mqtt_port: result.mqtt_port || DEFAULT_MQTT_PORT,
+      timezone: result.timezone || DEFAULT_TIMEZONE,
     };
   }
 
@@ -462,7 +566,10 @@ export class D1DatabaseService implements DatabaseService {
            z.code as zone_code,
            ak.claimed_at,
            ak.claimed_by_user_id,
-           ak.created_at
+           ak.created_at,
+           ak.mqtt_server,
+           ak.mqtt_port,
+           ak.timezone
          FROM api_keys ak
          LEFT JOIN zones z ON ak.zone_id = z.id
          WHERE ak.hardware_id IS NOT NULL
@@ -470,6 +577,80 @@ export class D1DatabaseService implements DatabaseService {
       )
       .all<Reader>();
     return result.results;
+  }
+
+  async updateReader(id: number, input: ReaderUpdateInput): Promise<Reader | null> {
+    const existing = await this.db
+      .prepare(
+        `SELECT id FROM api_keys
+         WHERE id = ? AND hardware_id IS NOT NULL AND claimed_at IS NOT NULL`
+      )
+      .bind(id)
+      .first<{ id: number }>();
+
+    if (!existing) {
+      return null;
+    }
+
+    const zone = await this.db
+      .prepare('SELECT id, name FROM zones WHERE id = ?')
+      .bind(input.zone_id)
+      .first<{ id: number; name: string }>();
+
+    if (!zone) {
+      throw new Error('Zone not found');
+    }
+
+    const mqttServer = input.mqtt_server ?? '';
+    const mqttPort = input.mqtt_port || DEFAULT_MQTT_PORT;
+    const timezone = input.timezone || DEFAULT_TIMEZONE;
+
+    await this.db
+      .prepare(
+        `UPDATE api_keys SET
+           name = ?,
+           zone_id = ?,
+           mqtt_server = ?,
+           mqtt_port = ?,
+           timezone = ?,
+           description = ?
+         WHERE id = ?`
+      )
+      .bind(
+        input.name,
+        input.zone_id,
+        mqttServer,
+        mqttPort,
+        timezone,
+        `Claimed to zone: ${zone.name}`,
+        id
+      )
+      .run();
+
+    const updated = await this.db
+      .prepare(
+        `SELECT
+           ak.id,
+           ak.name,
+           ak.hardware_id,
+           ak.claim_code,
+           ak.zone_id,
+           z.name as zone_name,
+           z.code as zone_code,
+           ak.claimed_at,
+           ak.claimed_by_user_id,
+           ak.created_at,
+           ak.mqtt_server,
+           ak.mqtt_port,
+           ak.timezone
+         FROM api_keys ak
+         LEFT JOIN zones z ON ak.zone_id = z.id
+         WHERE ak.id = ?`
+      )
+      .bind(id)
+      .first<Reader>();
+
+    return updated ?? null;
   }
 }
 

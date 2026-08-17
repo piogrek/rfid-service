@@ -1,4 +1,19 @@
-import type { TagSnapshot, StoredTagReading, CurrentTagState, TagRole, Zone, Asset, ApiKey, User, UserWithPassword, Message, Reader, ReaderConfig } from '../types';
+import type {
+  TagSnapshot,
+  StoredTagReading,
+  CurrentTagState,
+  TagRole,
+  Zone,
+  Asset,
+  ApiKey,
+  User,
+  UserWithPassword,
+  Message,
+  Reader,
+  ReaderConfig,
+  ReaderUpdateInput,
+  ClaimStatusResult,
+} from '../types';
 
 export interface AssetInput {
   name: string;
@@ -9,6 +24,8 @@ export interface AssetInput {
   epc: string;
   zone_id: number | null;
 }
+
+export type { ReaderUpdateInput, ClaimStatusResult };
 
 export interface DatabaseService {
   storeSnapshot(snapshot: TagSnapshot, apiKey: ApiKey): Promise<number>;
@@ -60,8 +77,10 @@ export interface DatabaseService {
   // Readers (RFID devices)
   registerReaderClaimCode(hardwareId: string, claimCode: string): Promise<void>;
   claimReader(claimCode: string, zoneId: number, userId: number, apiKey: string, apiKeyHash: string): Promise<ReaderConfig>;
+  getClaimStatus(hardwareId: string, claimCode: string): Promise<ClaimStatusResult | null>;
   getReaderByClaimCode(claimCode: string): Promise<ApiKey | null>;
   getReaderByHardwareId(hardwareId: string): Promise<ApiKey | null>;
   getReaderConfig(apiKeyId: number): Promise<ReaderConfig | null>;
   listReaders(): Promise<Reader[]>;
+  updateReader(id: number, input: ReaderUpdateInput): Promise<Reader | null>;
 }
