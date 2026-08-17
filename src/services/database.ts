@@ -83,4 +83,5 @@ export interface DatabaseService {
   getReaderConfig(apiKeyId: number): Promise<ReaderConfig | null>;
   listReaders(): Promise<Reader[]>;
   updateReader(id: number, input: ReaderUpdateInput): Promise<Reader | null>;
+  rotateReaderApiKey(id: number, apiKey: string, apiKeyHash: string): Promise<{ api_key: string } | null>;
 }

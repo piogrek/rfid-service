@@ -267,7 +267,49 @@ export class D1DatabaseService implements DatabaseService {
   }
 
   async touchApiKey(id: number): Promise<void> {
-    await this.db.prepare("UPDATE api_keys SET last_used_at = datetime('now') WHERE id = ?").bind(id).run();
+    // First successful agent auth consumes the one-time bootstrap secret.
+    await this.db
+      .prepare(
+        `UPDATE api_keys
+         SET last_used_at = datetime('now'),
+             bootstrap_api_key = NULL
+         WHERE id = ?`
+      )
+      .bind(id)
+      .run();
+  }
+
+  async rotateReaderApiKey(
+    id: number,
+    apiKey: string,
+    apiKeyHash: string
+  ): Promise<{ api_key: string } | null> {
+    const existing = await this.db
+      .prepare(
+        `SELECT id FROM api_keys
+         WHERE id = ? AND hardware_id IS NOT NULL AND claimed_at IS NOT NULL`
+      )
+      .bind(id)
+      .first<{ id: number }>();
+
+    if (!existing) {
+      return null;
+    }
+
+    const keyPrefix = apiKey.substring(0, API_KEY_PREFIX_LENGTH);
+    await this.db
+      .prepare(
+        `UPDATE api_keys SET
+           key_prefix = ?,
+           key_hash = ?,
+           bootstrap_api_key = ?,
+           last_used_at = NULL
+         WHERE id = ?`
+      )
+      .bind(keyPrefix, apiKeyHash, apiKey, id)
+      .run();
+
+    return { api_key: apiKey };
   }
 
   // --- Users ---
@@ -483,9 +525,12 @@ export class D1DatabaseService implements DatabaseService {
     }
 
     if (!row.bootstrap_api_key) {
+      // Already consumed by first successful agent auth — device must keep its token.
       return { claimed: true, config: null };
     }
 
+    // Keep bootstrap until first successful authenticateAgent so a failed device
+    // apply / reboot can still recover the one-time secret.
     const config: ReaderConfig = {
       api_key: row.bootstrap_api_key,
       zone_code: row.zone_code || '',
@@ -494,11 +539,6 @@ export class D1DatabaseService implements DatabaseService {
       mqtt_port: row.mqtt_port || DEFAULT_MQTT_PORT,
       timezone: row.timezone || DEFAULT_TIMEZONE,
     };
-
-    await this.db
-      .prepare('UPDATE api_keys SET bootstrap_api_key = NULL WHERE id = ?')
-      .bind(row.id)
-      .run();
 
     return { claimed: true, config };
   }

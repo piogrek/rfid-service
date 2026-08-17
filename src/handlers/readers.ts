@@ -1,13 +1,19 @@
 import type { Env, ReaderUpdateInput } from '../types';
 import type { DatabaseService } from '../services/database';
 import { authenticateUser, requireRole } from '../middleware/auth';
+import { generateApiKey, hashApiKey } from '../services/crypto';
 
 function extractId(pathname: string): number | null {
   const parts = pathname.split('/').filter(Boolean);
-  // /api/readers/:id
-  if (parts.length < 3) return null;
-  const id = parseInt(parts[parts.length - 1] ?? '', 10);
+  // /api/readers/:id or /api/readers/:id/rotate-key
+  const readersIdx = parts.indexOf('readers');
+  if (readersIdx < 0 || readersIdx + 1 >= parts.length) return null;
+  const id = parseInt(parts[readersIdx + 1] ?? '', 10);
   return Number.isNaN(id) ? null : id;
+}
+
+function isRotateKeyPath(pathname: string): boolean {
+  return /\/api\/readers\/\d+\/rotate-key\/?$/.test(pathname);
 }
 
 export async function handleReaders(request: Request, db: DatabaseService, env: Env): Promise<Response> {
@@ -16,12 +22,32 @@ export async function handleReaders(request: Request, db: DatabaseService, env: 
   const denied = requireRole(auth.value, 'admin');
   if (denied) return denied;
 
+  const pathname = new URL(request.url).pathname;
+
   if (request.method === 'GET') {
     return Response.json(await db.listReaders());
   }
 
+  if (request.method === 'POST' && isRotateKeyPath(pathname)) {
+    const id = extractId(pathname);
+    if (!id) return new Response('ID required', { status: 400 });
+
+    const rawKey = generateApiKey();
+    const keyHash = await hashApiKey(rawKey);
+    const result = await db.rotateReaderApiKey(id, rawKey, keyHash);
+    if (!result) return new Response('Not found', { status: 404 });
+
+    // One-time plaintext for admin to paste into device admin portal / wait for claim status.
+    return Response.json({
+      rotated: true,
+      api_key: result.api_key,
+      message:
+        'Copy this API key now. Paste it into the device admin portal (API token), then reboot the reader.',
+    });
+  }
+
   if (request.method === 'PUT') {
-    const id = extractId(new URL(request.url).pathname);
+    const id = extractId(pathname);
     if (!id) return new Response('ID required', { status: 400 });
 
     const body = await request.json() as {
